@@ -995,11 +995,11 @@
                 }));
 
                 const promises = [
-                    supabaseClient.from(METRICS_TABLE).upsert(metricsRows)
+                    supabaseClient.from(METRICS_TABLE).upsert(metricsRows, { onConflict: 'year,metric_id' })
                 ];
 
                 if (titleRows.length > 0) {
-                    promises.push(supabaseClient.from(TITLES_TABLE).upsert(titleRows));
+                    promises.push(supabaseClient.from(TITLES_TABLE).upsert(titleRows, { onConflict: 'title_id' }));
                 }
 
                 const results = await Promise.all(promises);
