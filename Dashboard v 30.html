@@ -20,6 +20,18 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+
+        @keyframes skeleton {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+        .skeleton-pulse { animation: skeleton 1.5s ease-in-out infinite; background: #e2e8f0; border-radius: 4px; }
+
         body { 
             font-family: 'Inter', sans-serif; 
             /* Modern Gradient Background */
@@ -93,6 +105,13 @@
         }
         .data-table td {
             border-bottom: 1px solid #f1f5f9;
+        }
+        .data-table td.sticky-col {
+            background: white;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+            box-shadow: 4px 0 10px -5px rgba(0,0,0,0.1);
         }
         .data-table input { 
             width: 100%; 
@@ -185,6 +204,19 @@
         #save-status.error { color: #ef4444; border-color: #fecaca; }
         #save-status.loading { color: #64748b; border-color: #e2e8f0; }
 
+        #loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(241, 245, 249, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.4s ease;
+        }
+        #loading-overlay.fade-out { opacity: 0; pointer-events: none; }
+
         /* Live Updates Container */
         #live-updates {
             margin-top: 20px;
@@ -267,6 +299,14 @@
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-spinner fa-spin text-3xl text-slate-600"></i>
+            <span class="text-lg font-semibold text-slate-700">Loading dashboard...</span>
+        </div>
+    </div>
 
     <!-- Auto-Save Status Indicator -->
     <div id="save-status" class="loading">
@@ -378,22 +418,21 @@
                         </div>
                     </div>
                     
-                    <div class="card p-4 border-l-4 border-l-red-800 hover-effect"><p class="kpi-label" id="label-recalls">YTD Product Recalls</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-recalls-total">0</p></div></div>
-                    <div class="card p-4 border-l-4 border-l-cyan-500 hover-effect"><p class="kpi-label" id="label-nearmiss">YTD Near Miss (FS)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-nm-fs">0</p></div></div>
-                    <div class="card p-4 border-l-4 border-l-slate-500 hover-effect"><p class="kpi-label" id="label-npr">YTD NPR Objects</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-npr">0</p></div></div>
-                    <div class="card p-4 border-l-4 border-l-orange-500 hover-effect"><p class="kpi-label" id="label-nc">YTD Non-Conformances</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-nc">0</p></div></div>
-                    <div class="card p-4 border-l-4 border-l-red-600 hover-effect"><p class="kpi-label" id="label-hse">YTD HSE Incidents</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-hse-total">0</p></div></div>
+                    <div class="card p-4 border-l-4 border-l-red-800 hover-effect"><p class="kpi-label" id="label-recalls">YTD Product Recalls</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-recalls-total">0</p><i class="fa-solid fa-rotate-left text-red-200 text-xl"></i></div></div>
+                     <div class="card p-4 border-l-4 border-l-cyan-500 hover-effect"><p class="kpi-label" id="label-nearmiss">YTD Near Miss (FS)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-nm-fs">0</p><i class="fa-solid fa-eye text-cyan-200 text-xl"></i></div></div>
+                     <div class="card p-4 border-l-4 border-l-slate-500 hover-effect"><p class="kpi-label" id="label-npr">YTD NPR Objects</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-npr">0</p><i class="fa-solid fa-magnifying-glass text-slate-200 text-xl"></i></div></div>
+                     <div class="card p-4 border-l-4 border-l-orange-500 hover-effect"><p class="kpi-label" id="label-nc">YTD Non-Conformances</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-nc">0</p><i class="fa-solid fa-file-circle-xmark text-orange-200 text-xl"></i></div></div>
+                     <div class="card p-4 border-l-4 border-l-red-600 hover-effect"><p class="kpi-label" id="label-hse">YTD HSE Incidents</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-hse-total">0</p><i class="fa-solid fa-helmet-safety text-red-200 text-xl"></i></div></div>
 
-                    <!-- New Metrics Added to Fix Error -->
-                    <div class="card p-4 border-l-4 border-l-indigo-400 hover-effect"><p class="kpi-label" id="label-inbound">YTD Inbound Bad</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-inbound-bad">0</p></div></div>
-                    <div class="card p-4 border-l-4 border-l-amber-400 hover-effect"><p class="kpi-label" id="label-swabs">YTD Swab Issues</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-swab-issues">0</p></div></div>
-                    <div class="card p-4 border-l-4 border-l-purple-500 hover-effect"><p class="kpi-label" id="label-enviro">YTD Env/FG Failures</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-micro-fails">0</p></div></div>
-                    <div class="card p-4 border-l-4 border-l-indigo-600 hover-effect"><p class="kpi-label" id="label-sixsigma">YTD 6 Sigma Avg</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-sixsigma">0</p></div></div>
-                    <div class="card p-4 border-l-4 border-l-blue-400 hover-effect"><p class="kpi-label" id="label-sensory">YTD Sensory Good</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-sensory">0%</p></div></div>
-                    <div class="card p-4 border-l-4 border-l-cyan-500 hover-effect"><p class="kpi-label" id="label-water">YTD Water (kL)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-water">0</p></div></div>
-                    <div class="card p-4 border-l-4 border-l-emerald-600 hover-effect"><p class="kpi-label" id="label-energy">YTD Energy (kWh)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-energy">0</p></div></div>
-                    <div class="card p-4 border-l-4 border-l-yellow-500 hover-effect"><p class="kpi-label" id="label-fuel">YTD Fuel (L)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-fuel">0</p></div></div>
-                    <div class="card p-4 border-l-4 border-l-yellow-800 hover-effect"><p class="kpi-label" id="label-organic">YTD Organic (Kg)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-organic">0</p></div></div>
+                     <div class="card p-4 border-l-4 border-l-indigo-400 hover-effect"><p class="kpi-label" id="label-inbound">YTD Inbound Bad</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-inbound-bad">0</p><i class="fa-solid fa-truck-ramp-box text-indigo-200 text-xl"></i></div></div>
+                     <div class="card p-4 border-l-4 border-l-amber-400 hover-effect"><p class="kpi-label" id="label-swabs">YTD Swab Issues</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-swab-issues">0</p><i class="fa-solid fa-vial text-amber-200 text-xl"></i></div></div>
+                     <div class="card p-4 border-l-4 border-l-purple-500 hover-effect"><p class="kpi-label" id="label-enviro">YTD Env/FG Failures</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-micro-fails">0</p><i class="fa-solid fa-flask text-purple-200 text-xl"></i></div></div>
+                     <div class="card p-4 border-l-4 border-l-indigo-600 hover-effect"><p class="kpi-label" id="label-sixsigma">YTD 6 Sigma Avg</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-sixsigma">0</p><i class="fa-solid fa-sigma text-indigo-200 text-xl"></i></div></div>
+                     <div class="card p-4 border-l-4 border-l-blue-400 hover-effect"><p class="kpi-label" id="label-sensory">YTD Sensory Good</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-sensory">0%</p><i class="fa-solid fa-tongue text-blue-200 text-xl"></i></div></div>
+                     <div class="card p-4 border-l-4 border-l-cyan-500 hover-effect"><p class="kpi-label" id="label-water">YTD Water (kL)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-water">0</p><i class="fa-solid fa-droplet text-cyan-200 text-xl"></i></div></div>
+                     <div class="card p-4 border-l-4 border-l-emerald-600 hover-effect"><p class="kpi-label" id="label-energy">YTD Energy (kWh)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-energy">0</p><i class="fa-solid fa-bolt text-emerald-200 text-xl"></i></div></div>
+                     <div class="card p-4 border-l-4 border-l-yellow-500 hover-effect"><p class="kpi-label" id="label-fuel">YTD Fuel (L)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-fuel">0</p><i class="fa-solid fa-gas-pump text-yellow-200 text-xl"></i></div></div>
+                     <div class="card p-4 border-l-4 border-l-yellow-800 hover-effect"><p class="kpi-label" id="label-organic">YTD Organic (Kg)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-organic">0</p><i class="fa-solid fa-leaf text-yellow-200 text-xl"></i></div></div>
 
                 </div>
 
@@ -704,7 +743,11 @@
         let supabaseClient = null;
         let currentSessionId = null;
         let saveTimeout = null;
+        let isSaving = false;
+        let lastSaveTimestamp = 0;
+        const LOCAL_STORAGE_KEY = 'dashboard_store_v30';
         const statusEl = document.getElementById('save-status');
+        const loadingOverlay = document.getElementById('loading-overlay');
 
         try {
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -805,6 +848,16 @@
         let store = { activeYear: DEFAULT_YEAR, years: {}, titles: {} };
         let appData = null; 
 
+        function saveToLocal() {
+            try { localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(store)); } catch(e) { console.warn("localStorage save failed", e); }
+        }
+        function loadFromLocal() {
+            try { const raw = localStorage.getItem(LOCAL_STORAGE_KEY); if(raw) return JSON.parse(raw); } catch(e) {} return null;
+        }
+        function dismissLoading() {
+            if(loadingOverlay) { loadingOverlay.classList.add('fade-out'); setTimeout(() => loadingOverlay.remove(), 500); }
+        }
+
         // ----------------------------------------------------
         // INITIALIZATION LOGIC
         // ----------------------------------------------------
@@ -814,7 +867,6 @@
             try {
                 if (!supabaseClient) throw new Error("Supabase client not initialized");
 
-                // 1. Fetch from Supabase (Normalized Tables)
                 const [{ data: dbMetrics, error: err1 }, { data: dbTitles, error: err2 }] = await Promise.all([
                     supabaseClient.from(METRICS_TABLE).select('*'),
                     supabaseClient.from(TITLES_TABLE).select('*')
@@ -826,7 +878,6 @@
                 if (dbMetrics && dbMetrics.length > 0) {
                     console.log("Supabase Data Found:", dbMetrics.length, "metrics");
                     
-                    // Reconstruct store
                     dbMetrics.forEach(row => {
                         if (!store.years[row.year]) {
                             store.years[row.year] = { months: defaultData.months, metrics: [] };
@@ -844,31 +895,42 @@
                         dbTitles.forEach(t => store.titles[t.title_id] = t.title_text);
                     }
 
-                    // Auto-select latest year
                     const sortedYears = Object.keys(store.years).sort().reverse();
                     store.activeYear = sortedYears.length > 0 ? sortedYears[0] : DEFAULT_YEAR;
                     
+                    saveToLocal();
                     setStatus('saved');
                     logUpdate("Loaded normalized data from cloud");
                 } else {
                     console.log("No data in Supabase. Initializing default.");
-                    initDefaultStore();
+                    const cached = loadFromLocal();
+                    if(cached && cached.years && Object.keys(cached.years).length > 0) {
+                        store = cached;
+                        logUpdate("Loaded from local cache (no cloud data)");
+                    } else {
+                        initDefaultStore();
+                    }
                     setStatus('saved'); 
                     triggerAutoSave();
                 }
             } catch (err) {
                 console.error("Initialization Error (Falling back to local):", err);
-                initDefaultStore();
+                const cached = loadFromLocal();
+                if(cached && cached.years && Object.keys(cached.years).length > 0) {
+                    store = cached;
+                    logUpdate("Loaded from local cache (cloud unavailable)");
+                } else {
+                    initDefaultStore();
+                }
                 setStatus('saved'); 
                 logUpdate("Loaded in offline/default mode.");
             }
 
-            // 2. Hydrate UI
             loadYear(store.activeYear);
             renderYearList();
             initTitles();
+            dismissLoading();
             
-            // 3. Start Listening for External Changes
             if(supabaseClient) subscribeToChanges();
         }
 
@@ -882,20 +944,18 @@
         function loadYear(year) {
             store.activeYear = year;
             if(!store.years[year]) {
-                // Fallback if year missing
                 store.years[year] = JSON.parse(JSON.stringify(defaultData));
             }
             appData = store.years[year];
             
-            // Ensure schema integrity
             ensureMetricsComplete();
+            saveToLocal();
 
-            // Update UI
             document.getElementById('current-year-display').innerText = year;
             document.getElementById('print-year').innerText = year;
             document.getElementById('edit-year-indicator').innerText = year;
             
-            // Re-render everything
+            renderYearList();
             renderTable();
             initCharts(); 
             updateKPIs();
@@ -912,10 +972,12 @@
         }
 
         async function persistToSupabase() {
+            if (isSaving) { saveTimeout = setTimeout(persistToSupabase, 500); return; }
+            isSaving = true;
             try {
                 if (!appData) return;
+                saveToLocal();
 
-                // Sync current active year's metrics
                 const metricsRows = appData.metrics.map(m => ({
                     year: store.activeYear,
                     metric_id: m.id,
@@ -940,19 +1002,25 @@
                     promises.push(supabaseClient.from(TITLES_TABLE).upsert(titleRows));
                 }
 
-                await Promise.all(promises);
-                
+                const results = await Promise.all(promises);
+                results.forEach(r => { if(r.error) throw r.error; });
+
+                lastSaveTimestamp = Date.now();
                 setStatus('saved');
                 console.log("Cloud Sync Complete");
 
             } catch (err) {
                 console.error("Sync Failed:", err);
+                saveToLocal();
                 setStatus('error');
+            } finally {
+                isSaving = false;
             }
         }
 
         function forceSave() {
             if(saveTimeout) clearTimeout(saveTimeout);
+            setStatus('saving');
             persistToSupabase();
         }
 
@@ -961,6 +1029,7 @@
         // ----------------------------------------------------
 
         function promptNewYear() {
+            document.getElementById('year-dropdown').classList.add('hidden');
             const nextYear = (parseInt(store.activeYear) + 1).toString();
             const year = prompt("Enter the year you want to add:", nextYear);
             if(year && year.match(/^\d{4}$/)) {
@@ -968,7 +1037,6 @@
                     alert("Year already exists! Switching to it.");
                     loadYear(year);
                 } else {
-                    // CLONE structure from current year, but zero out data
                     const newMetrics = JSON.parse(JSON.stringify(appData.metrics));
                     newMetrics.forEach(m => {
                         m.data = new Array(12).fill(0);
@@ -978,6 +1046,7 @@
                         months: defaultData.months,
                         metrics: newMetrics
                     };
+                    saveToLocal();
                     loadYear(year);
                     renderYearList();
                     triggerAutoSave();
@@ -1010,6 +1079,7 @@
                 div.innerHTML = `<span>${y}</span> ${y === store.activeYear ? '<i class="fa-solid fa-check text-xs"></i>' : ''}`;
                 div.onclick = () => {
                     if(y !== store.activeYear) loadYear(y);
+                    document.getElementById('year-dropdown').classList.add('hidden');
                 };
                 list.appendChild(div);
             });
@@ -1029,8 +1099,9 @@
         function resetData() { 
             if(confirm(`Are you sure you want to reset ALL data for ${store.activeYear}?`)) { 
                 appData.metrics.forEach(m => m.data = new Array(12).fill(0));
+                saveToLocal();
                 triggerAutoSave(); 
-                loadYear(store.activeYear); // Re-render
+                loadYear(store.activeYear);
             } 
         }
 
@@ -1057,17 +1128,16 @@
                 const th = document.createElement('th');
                 th.className = "p-2 border-r border-slate-100 bg-white sticky left-0 z-10 text-left shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)] min-w-[300px] w-80"; 
                 
-                // Color dot
                 const dot = `<span class="w-2 h-2 rounded-full mr-2 inline-block" style="background-color: ${metric.color}"></span>`;
                 
-                // Editable Input for Name
                 const nameInput = document.createElement('input');
                 nameInput.type = 'text';
                 nameInput.value = metric.name;
                 nameInput.className = 'name-input w-full bg-transparent border border-transparent rounded hover:border-slate-200 focus:border-blue-400 px-2 py-1 text-sm font-semibold text-slate-800';
                 nameInput.onchange = (e) => {
                     appData.metrics[metricIndex].name = e.target.value;
-                    updateCharts(); // name changed, update charts
+                    updateCharts();
+                    saveToLocal();
                     triggerAutoSave();
                 };
 
@@ -1085,11 +1155,14 @@
                     const input = document.createElement('input');
                     input.type = "number"; input.value = val;
 
+                    let debounceTimer;
                     input.oninput = (e) => { 
                         appData.metrics[metricIndex].data[monthIndex] = Number(e.target.value); 
                         updateKPIs();
                         updateCharts();
-                        triggerAutoSave(); 
+                        saveToLocal();
+                        clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(() => triggerAutoSave(), 800);
                     };
                     td.appendChild(input); tr.appendChild(td);
                 });
@@ -1143,6 +1216,7 @@
                 if(el) {
                     el.onblur = () => { 
                         store.titles[el.id] = el.innerText; 
+                        saveToLocal();
                         triggerAutoSave(); 
                     };
                     el.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); el.blur(); } };
@@ -1158,6 +1232,7 @@
                     const newText = el.innerText; 
                     store.titles[id] = newText; 
                     syncLabel(id, newText); 
+                    saveToLocal();
                     triggerAutoSave();
                 };
                 el.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); el.blur(); } };
@@ -1217,7 +1292,87 @@
 
         // Just refreshes data, relies on initCharts to set structure
         function updateCharts() {
-            initCharts();
+            const sumArrays = (ids) => appData.months.map((_, i) => ids.reduce((sum, id) => sum + (getMetricData(id)[i] || 0), 0));
+            const updateSingle = (id, datasets) => {
+                const c = charts[id];
+                if(!c) return;
+                datasets.forEach((ds, i) => {
+                    if(c.data.datasets[i]) {
+                        c.data.datasets[i].data = ds.data;
+                        if(ds.label) c.data.datasets[i].label = ds.label;
+                    }
+                });
+                c.update('none');
+            };
+
+            updateSingle('chartGMP', [{ label: getMetricName('gmp'), data: getMetricData('gmp') }]);
+            updateSingle('chartPest', [{ label: getMetricName('pest'), data: getMetricData('pest') }]);
+            updateSingle('chartComplaints', [{ label: getMetricName('complaints'), data: getMetricData('complaints') }]);
+            updateSingle('chartAudits', [{ label: getMetricName('audits'), data: getMetricData('audits') }]);
+            updateSingle('chartRecalls', [{ label: getMetricName('recalls'), data: getMetricData('recalls') }]);
+            updateSingle('chartSixSigma', [{ label: getMetricName('six_sigma'), data: getMetricData('six_sigma') }]);
+            updateSingle('chartNC', [{ label: getMetricName('nc_internal'), data: getMetricData('nc_internal') }, { label: getMetricName('nc_supplier'), data: getMetricData('nc_supplier') }]);
+            updateSingle('chartNearMissFS', [{ label: getMetricName('nm_fs'), data: getMetricData('nm_fs') }]);
+            updateSingle('chartNPR', [{ label: getMetricName('npr_fo'), data: getMetricData('npr_fo') }]);
+            updateSingle('chartFuel', [{ label: getMetricName('fuel'), data: getMetricData('fuel') }]);
+            updateSingle('chartOrganic', [{ label: getMetricName('organic_waste'), data: getMetricData('organic_waste') }]);
+
+            updateSingle('chartSwabs', [
+                { label: getMetricName('swab_good'), data: getMetricData('swab_good') },
+                { label: getMetricName('swab_caution'), data: getMetricData('swab_caution') },
+                { label: getMetricName('swab_bad'), data: getMetricData('swab_bad') }
+            ]);
+
+            updateSingle('chartEnviro', [
+                { label: 'Within Range', data: sumArrays(['env_tpc_good', 'env_ecoli_good', 'env_ym_good', 'env_salm_good', 'env_staph_good', 'env_list_good']) },
+                { label: getMetricName('env_tpc_bad'), data: getMetricData('env_tpc_bad') },
+                { label: getMetricName('env_ecoli_bad'), data: getMetricData('env_ecoli_bad') },
+                { label: getMetricName('env_ym_bad'), data: getMetricData('env_ym_bad') },
+                { label: getMetricName('env_salm_bad'), data: getMetricData('env_salm_bad') },
+                { label: getMetricName('env_staph_bad'), data: getMetricData('env_staph_bad') },
+                { label: getMetricName('env_list_bad'), data: getMetricData('env_list_bad') }
+            ]);
+
+            updateSingle('chartFG', [
+                { label: 'Acceptable', data: sumArrays(['fg_ecoli_good', 'fg_0157_good', 'fg_salm_good', 'fg_list_good']) },
+                { label: getMetricName('fg_ecoli_bad'), data: getMetricData('fg_ecoli_bad') },
+                { label: getMetricName('fg_0157_bad'), data: getMetricData('fg_0157_bad') },
+                { label: getMetricName('fg_salm_bad'), data: getMetricData('fg_salm_bad') },
+                { label: getMetricName('fg_list_bad'), data: getMetricData('fg_list_bad') }
+            ]);
+
+            updateSingle('chartCCP', [
+                { label: 'Acceptable', data: sumArrays(['ccp_temp_good', 'ccp_md_good', 'ccp_cl_t2_good', 'ccp_cl_main_good']) },
+                { label: getMetricName('ccp_temp_bad'), data: getMetricData('ccp_temp_bad') },
+                { label: getMetricName('ccp_md_bad'), data: getMetricData('ccp_md_bad') },
+                { label: getMetricName('ccp_cl_t2_bad'), data: getMetricData('ccp_cl_t2_bad') },
+                { label: getMetricName('ccp_cl_main_bad'), data: getMetricData('ccp_cl_main_bad') }
+            ]);
+
+            updateSingle('chartInbound', [
+                { label: getMetricName('inbound_veg_good'), data: getMetricData('inbound_veg_good') },
+                { label: getMetricName('inbound_veg_bad'), data: getMetricData('inbound_veg_bad') },
+                { label: getMetricName('inbound_leafy_good'), data: getMetricData('inbound_leafy_good') },
+                { label: getMetricName('inbound_leafy_bad'), data: getMetricData('inbound_leafy_bad') }
+            ]);
+
+            updateSingle('chartSensory', [
+                { label: getMetricName('sensory_lettuce_good'), data: getMetricData('sensory_lettuce_good') },
+                { label: getMetricName('sensory_lettuce_bad'), data: getMetricData('sensory_lettuce_bad') },
+                { label: getMetricName('sensory_onion_good'), data: getMetricData('sensory_onion_good') },
+                { label: getMetricName('sensory_onion_bad'), data: getMetricData('sensory_onion_bad') }
+            ]);
+
+            updateSingle('chartHSE', [
+                { label: getMetricName('hse_near_miss'), data: getMetricData('hse_near_miss') },
+                { label: getMetricName('hse_accident_minor'), data: getMetricData('hse_accident_minor') },
+                { label: getMetricName('hse_accident_major'), data: getMetricData('hse_accident_major') }
+            ]);
+
+            updateSingle('chartResources', [
+                { label: getMetricName('water'), data: getMetricData('water') },
+                { label: getMetricName('energy'), data: getMetricData('energy') }
+            ]);
         }
 
         function updateKPIs() {
@@ -1364,7 +1519,7 @@
                         { label: yB, data: incB, backgroundColor: '#3b82f6' }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
             });
 
             // Quality Scores Prep
@@ -1380,7 +1535,7 @@
                         { label: yB, data: qualB, backgroundColor: '#10b981' }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 80, max: 100 } } } 
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } } } 
             });
         }
 
@@ -1417,6 +1572,8 @@
             supabaseClient
                 .channel('dashboard-metrics-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: METRICS_TABLE }, (payload) => {
+                    if (Date.now() - lastSaveTimestamp < 3000) { return; }
+
                     const row = payload.new;
                     if (row && row.year && store.years[row.year]) {
                         const metric = store.years[row.year].metrics.find(m => m.id === row.metric_id);
@@ -1426,18 +1583,26 @@
                             
                             logUpdate(`Remote update: ${row.name}`);
                             if (store.activeYear === row.year) {
-                                loadYear(store.activeYear); 
+                                updateCharts();
+                                updateKPIs();
+                                renderTable();
                             }
+                            saveToLocal();
                         }
                     }
                 })
                 .on('postgres_changes', { event: '*', schema: 'public', table: TITLES_TABLE }, (payload) => {
+                    if (Date.now() - lastSaveTimestamp < 3000) { return; }
                     if (payload.new && payload.new.title_id) {
                         store.titles[payload.new.title_id] = payload.new.title_text;
                         initTitles();
+                        saveToLocal();
                     }
                 })
-                .subscribe();
+                .subscribe((status, err) => {
+                    if(status === 'SUBSCRIBED') logUpdate("Realtime sync connected");
+                    if(status === 'CHANNEL_ERROR') { console.error("Realtime error", err); logUpdate("Realtime sync failed"); }
+                });
         }
 
         // Start App
