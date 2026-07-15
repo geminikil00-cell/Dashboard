@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quality & Sustainability Dashboard - Realtime</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            /* Modern Gradient Background */
+            background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%);
+            color: #1e293b; /* Slate 900 */
+        }
+        
+        /* Professional Card Styling */
+        .card { 
+            background: rgba(255, 255, 255, 0.95); /* Slight transparency */
+            border: 1px solid rgba(255, 255, 255, 0.5); 
+            border-radius: 1rem; /* More rounded */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            transition: transform 0.2s ease, box-shadow 0.2s ease; 
+            backdrop-filter: blur(4px);
+        }
+        /* Hover effect only on non-static cards */
+        .card.hover-effect:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); 
+        }
+
+        .nav-item.active { 
+            background-color: #0f172a; /* Dark Slate */
+            color: white; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .nav-item { cursor: pointer; }
+        
+        /* Editable Title Styling */
+        .editable-title {
+            border: 1px dashed transparent;
+            border-radius: 4px;
+            cursor: text;
+            transition: all 0.2s;
+            padding: 2px 4px;
+        }
+        .editable-title:hover {
+            border-color: #94a3b8;
+            background-color: rgba(255,255,255,0.5);
+        }
+        .editable-title:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background-color: white;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        /* YTD Badge Styling */
+        .ytd-badge {
+            font-size: 0.70rem;
+            font-weight: 700;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            background-color: #e2e8f0;
+            color: #475569;
+            margin-left: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            letter-spacing: 0.025em;
+        }
+
+        /* Table Styles */
+        .data-table th { 
+            background-color: #f8fafc; 
+            color: #475569; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            font-size: 0.7rem; 
+            letter-spacing: 0.05em; 
+        }
+        .data-table td {
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .data-table input { 
+            width: 100%; 
+            border: 1px solid transparent; 
+            background: transparent; 
+            padding: 6px; 
+            border-radius: 4px; 
+            text-align: center; 
+            transition: all 0.2s; 
+            font-variant-numeric: tabular-nums;
+        }
+        .data-table input:focus { 
+            border-color: #3b82f6; 
+            background: white; 
+            outline: none; 
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+        .data-table input:hover { 
+            background: #f8fafc; 
+        }
+        /* Name Input Specifics */
+        .name-input {
+            text-align: left !important;
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 0.875rem !important; /* text-sm */
+        }
+        .name-input:focus {
+            background-color: white !important;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+        }
+        
+        /* Section Header */
+        .section-header {
+            border-left: 4px solid #3b82f6;
+            padding-left: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        /* KPI Label */
+        .kpi-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+        }
+
+        /* Comparison Styles */
+        .diff-positive { color: #10b981; font-weight: 600; }
+        .diff-negative { color: #ef4444; font-weight: 600; }
+        .diff-neutral { color: #94a3b8; }
+
+        /* Save Indicator */
+        #save-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 8px 16px;
+            border-radius: 99px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 50;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        #save-status.saving { color: #2563eb; border-color: #bfdbfe; }
+        #save-status.saved { color: #10b981; border-color: #bbf7d0; }
+        #save-status.error { color: #ef4444; border-color: #fecaca; }
+        #save-status.loading { color: #64748b; border-color: #e2e8f0; }
+
+        /* Live Updates Container */
+        #live-updates {
+            margin-top: 20px;
+            padding: 1rem;
+            background: #1e293b;
+            color: #94a3b8;
+            font-family: monospace;
+            font-size: 0.75rem;
+            border-radius: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #334155;
+        }
+        #live-updates p { margin-bottom: 4px; }
+        #live-updates .new-event { color: #38bdf8; font-weight: bold; }
+
+        /* ========================================= */
+        /* PRINT STYLES                              */
+        /* ========================================= */
+        @media print {
+            .no-print { display: none !important; }
+            #save-status, #live-updates { display: none !important; }
+            
+            body, main { 
+                background: white !important; 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+                overflow: visible !important;
+                height: auto !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                display: block !important;
+            }
+
+            .print-section-group {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                display: block;
+            }
+            
+            .max-w-7xl {
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+
+            section {
+                break-inside: auto; 
+                page-break-inside: auto;
+            }
+
+            .section-header { 
+                break-after: avoid !important; 
+                page-break-after: avoid !important;
+                margin-top: 2rem !important; 
+                margin-bottom: 1rem !important; 
+                border-left-width: 4px !important; 
+            }
+
+            .section-header + div {
+                break-before: avoid !important;
+                page-break-before: avoid !important;
+            }
+
+            .card { 
+                break-inside: avoid !important; 
+                page-break-inside: avoid !important; 
+                box-shadow: none !important; 
+                border: 1px solid #ccc !important;
+                margin-bottom: 1rem !important;
+                display: block !important;
+            }
+
+            #view-data { display: none !important; }
+            #view-dashboard { display: block !important; }
+            #view-compare { display: none !important; } /* Hide compare on print for now, or optional */
+            
+            h2 { color: #000 !important; }
+            p { color: #333 !important; }
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- Auto-Save Status Indicator -->
+    <div id="save-status" class="loading">
+        <i class="fa-solid fa-cloud-arrow-down fa-bounce"></i> Initializing...
+    </div>
+
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-md border-b border-slate-200 z-20 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 text-white p-2.5 rounded-xl shadow-lg">
+                        <i class="fa-solid fa-chart-pie text-lg"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 id="main-title" contenteditable="true" class="editable-title text-xl font-bold text-slate-900 leading-tight">Executive Dashboard</h1>
+                            <!-- Year Selector -->
+                            <div class="relative">
+                                <button onclick="toggleYearMenu(event)" class="flex items-center text-xs font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 hover:bg-blue-100 transition-colors">
+                                    <span id="current-year-display">2025</span>
+                                    <i class="fa-solid fa-chevron-down ml-1 text-[10px]"></i>
+                                </button>
+                                <div id="year-dropdown" class="absolute left-0 mt-1 w-32 bg-white border border-slate-200 shadow-xl rounded-lg overflow-hidden hidden z-50">
+                                    <div id="year-list" class="max-h-48 overflow-y-auto">
+                                        <!-- JS Populated -->
+                                    </div>
+                                    <div class="border-t border-slate-100">
+                                        <button onclick="promptNewYear()" class="w-full text-left px-4 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50">
+                                            <i class="fa-solid fa-plus mr-1"></i> New Year
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p id="main-subtitle" contenteditable="true" class="editable-title text-xs text-slate-500 font-medium mt-0.5">Operational Excellence</p>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <div class="flex space-x-1 bg-slate-100/50 p-1 rounded-lg border border-slate-200/50">
+                        <button onclick="switchTab('dashboard')" id="btn-dashboard" class="nav-item active px-4 py-2 rounded-md text-sm font-medium transition-all">
+                            <i class="fa-solid fa-gauge mr-2"></i>View
+                        </button>
+                        <button onclick="switchTab('compare')" id="btn-compare" class="nav-item px-4 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-slate-900 transition-all">
+                            <i class="fa-solid fa-code-compare mr-2"></i>Compare
+                        </button>
+                        <button onclick="switchTab('data')" id="btn-data" class="nav-item px-4 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-slate-900 transition-all">
+                            <i class="fa-solid fa-pen-to-square mr-2"></i>Data
+                        </button>
+                    </div>
+                    <button onclick="window.print()" class="px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-md flex items-center">
+                        <i class="fa-solid fa-print mr-2"></i> Print
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-auto p-6 bg-slate-50/50">
+        <div class="max-w-7xl mx-auto">
+            
+            <!-- DASHBOARD VIEW -->
+            <div id="view-dashboard" class="space-y-8 animate-fade-in pb-12">
+                
+                <!-- Print Header (Only visible on print) -->
+                <div class="hidden print:block mb-8">
+                     <h1 class="text-3xl font-bold text-slate-900">Executive Dashboard <span id="print-year"></span></h1>
+                     <p class="text-lg text-slate-500">Operational Excellence Report</p>
+                     <hr class="mt-4 border-slate-300">
+                </div>
+
+                <!-- KPI Overview Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
+                    <!-- Cards will be auto-populated -->
+                     <div class="card p-4 border-l-4 border-l-blue-500 hover-effect">
+                        <p class="kpi-label" id="label-audits">YTD Audit Score</p>
+                        <div class="flex items-end justify-between mt-2">
+                            <p class="text-2xl font-bold text-slate-800" id="kpi-audit-avg">0%</p>
+                            <i class="fa-solid fa-clipboard-check text-blue-200 text-xl"></i>
+                        </div>
+                    </div>
+                     <div class="card p-4 border-l-4 border-l-red-500 hover-effect">
+                        <p class="kpi-label" id="label-gmp">YTD GMP Violations</p>
+                        <div class="flex items-end justify-between mt-2">
+                            <p class="text-2xl font-bold text-slate-800" id="kpi-gmp-total">0</p>
+                            <i class="fa-solid fa-user-shield text-red-200 text-xl"></i>
+                        </div>
+                    </div>
+                     <div class="card p-4 border-l-4 border-l-amber-500 hover-effect">
+                        <p class="kpi-label" id="label-pest">YTD Pest Sightings</p>
+                        <div class="flex items-end justify-between mt-2">
+                            <p class="text-2xl font-bold text-slate-800" id="kpi-pest-total">0</p>
+                            <i class="fa-solid fa-bug text-amber-200 text-xl"></i>
+                        </div>
+                    </div>
+                     <div class="card p-4 border-l-4 border-l-indigo-500 hover-effect">
+                        <p class="kpi-label" id="label-complaints">YTD Complaints</p>
+                        <div class="flex items-end justify-between mt-2">
+                            <p class="text-2xl font-bold text-slate-800" id="kpi-complaints-total">0</p>
+                            <i class="fa-solid fa-comment-dots text-indigo-200 text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="card p-4 border-l-4 border-l-red-600 hover-effect">
+                        <p class="kpi-label" id="label-ccp">YTD CCP Failures</p>
+                        <div class="flex items-end justify-between mt-2">
+                            <p class="text-2xl font-bold text-slate-800" id="kpi-ccp-fails">0</p>
+                            <i class="fa-solid fa-triangle-exclamation text-red-200 text-xl"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="card p-4 border-l-4 border-l-red-800 hover-effect"><p class="kpi-label" id="label-recalls">YTD Product Recalls</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-recalls-total">0</p></div></div>
+                    <div class="card p-4 border-l-4 border-l-cyan-500 hover-effect"><p class="kpi-label" id="label-nearmiss">YTD Near Miss (FS)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-nm-fs">0</p></div></div>
+                    <div class="card p-4 border-l-4 border-l-slate-500 hover-effect"><p class="kpi-label" id="label-npr">YTD NPR Objects</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-npr">0</p></div></div>
+                    <div class="card p-4 border-l-4 border-l-orange-500 hover-effect"><p class="kpi-label" id="label-nc">YTD Non-Conformances</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-nc">0</p></div></div>
+                    <div class="card p-4 border-l-4 border-l-red-600 hover-effect"><p class="kpi-label" id="label-hse">YTD HSE Incidents</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-hse-total">0</p></div></div>
+
+                    <!-- New Metrics Added to Fix Error -->
+                    <div class="card p-4 border-l-4 border-l-indigo-400 hover-effect"><p class="kpi-label" id="label-inbound">YTD Inbound Bad</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-inbound-bad">0</p></div></div>
+                    <div class="card p-4 border-l-4 border-l-amber-400 hover-effect"><p class="kpi-label" id="label-swabs">YTD Swab Issues</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-swab-issues">0</p></div></div>
+                    <div class="card p-4 border-l-4 border-l-purple-500 hover-effect"><p class="kpi-label" id="label-enviro">YTD Env/FG Failures</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-micro-fails">0</p></div></div>
+                    <div class="card p-4 border-l-4 border-l-indigo-600 hover-effect"><p class="kpi-label" id="label-sixsigma">YTD 6 Sigma Avg</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-sixsigma">0</p></div></div>
+                    <div class="card p-4 border-l-4 border-l-blue-400 hover-effect"><p class="kpi-label" id="label-sensory">YTD Sensory Good</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-sensory">0%</p></div></div>
+                    <div class="card p-4 border-l-4 border-l-cyan-500 hover-effect"><p class="kpi-label" id="label-water">YTD Water (kL)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-water">0</p></div></div>
+                    <div class="card p-4 border-l-4 border-l-emerald-600 hover-effect"><p class="kpi-label" id="label-energy">YTD Energy (kWh)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-energy">0</p></div></div>
+                    <div class="card p-4 border-l-4 border-l-yellow-500 hover-effect"><p class="kpi-label" id="label-fuel">YTD Fuel (L)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-fuel">0</p></div></div>
+                    <div class="card p-4 border-l-4 border-l-yellow-800 hover-effect"><p class="kpi-label" id="label-organic">YTD Organic (Kg)</p><div class="flex items-end justify-between mt-2"><p class="text-2xl font-bold text-slate-800" id="kpi-organic">0</p></div></div>
+
+                </div>
+
+                <!-- GROUP 1: FOOD SAFETY -->
+                <section>
+                    <div class="print-section-group">
+                        <div class="section-header">
+                            <h2 class="text-2xl font-bold text-slate-800">Food Safety</h2>
+                            <p class="text-sm text-slate-500">Critical control points and incident tracking</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            <div class="card p-6 lg:col-span-2 hover-effect">
+                                <div class="flex justify-between items-center mb-6">
+                                    <div class="flex items-center">
+                                        <h3 id="title-ccp" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">Critical Control Points (CCP)</h3>
+                                        <span id="ytd-ccp" class="ytd-badge">YTD Fail: 0</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
+                                        <span class="w-2 h-2 rounded-full bg-red-500"></span> <span>Failures</span>
+                                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span> <span>Acceptable</span>
+                                    </div>
+                                </div>
+                                <div class="h-80"><canvas id="chartCCP"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="card p-6 hover-effect">
+                            <div class="flex justify-between items-center mb-6">
+                                <div class="flex items-center"><h3 id="title-recalls" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">Product Recalls</h3><span id="ytd-recalls" class="ytd-badge">YTD: 0</span></div>
+                            </div>
+                            <div class="h-64 relative"><canvas id="chartRecalls"></canvas></div>
+                        </div>
+                        <div class="card p-6 hover-effect">
+                            <div class="flex justify-between items-center mb-6">
+                                <div class="flex items-center"><h3 id="title-nearmiss" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">Near Miss (FS)</h3><span id="ytd-nearmiss" class="ytd-badge">YTD: 0</span></div>
+                            </div>
+                            <div class="h-64"><canvas id="chartNearMissFS"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="card p-6 hover-effect">
+                             <div class="flex items-center mb-6"><h3 id="title-npr" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">NPR Foreign Objects</h3><span id="ytd-npr" class="ytd-badge">YTD: 0</span></div>
+                            <div class="h-64"><canvas id="chartNPR"></canvas></div>
+                        </div>
+                        <div class="card p-6 hover-effect">
+                             <div class="flex items-center mb-6"><h3 id="title-nc" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">Non-Conformances</h3><span id="ytd-nc" class="ytd-badge">YTD: 0</span></div>
+                            <div class="h-64"><canvas id="chartNC"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="card p-6 hover-effect">
+                             <div class="flex items-center mb-6"><h3 id="title-gmp" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">GMP Violations</h3><span id="ytd-gmp" class="ytd-badge">YTD: 0</span></div>
+                            <div class="h-64"><canvas id="chartGMP"></canvas></div>
+                        </div>
+                        <div class="card p-6 hover-effect">
+                             <div class="flex items-center mb-6"><h3 id="title-pest" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">Pest Sightings</h3><span id="ytd-pest" class="ytd-badge">YTD: 0</span></div>
+                            <div class="h-64"><canvas id="chartPest"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="card p-6 hover-effect">
+                             <div class="flex items-center mb-6"><h3 id="title-complaints" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">Customer Complaints</h3><span id="ytd-complaints" class="ytd-badge">YTD: 0</span></div>
+                            <div class="h-64"><canvas id="chartComplaints"></canvas></div>
+                        </div>
+                        <div class="card p-6 hover-effect">
+                             <div class="flex items-center mb-6"><h3 id="title-audits" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">Internal Audit Scores</h3><span id="ytd-audits" class="ytd-badge">YTD Avg: 0%</span></div>
+                            <div class="h-64"><canvas id="chartAudits"></canvas></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- GROUP 2: MICROBIAL TESTING -->
+                <section>
+                    <div class="print-section-group">
+                        <div class="section-header mb-6 mt-12 border-l-indigo-500">
+                            <h2 class="text-2xl font-bold text-slate-800">Microbial Testing</h2>
+                            <p class="text-sm text-slate-500">Swabs, Environmental & Finished Goods</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-6">
+                            <div class="card p-6 hover-effect">
+                                 <div class="flex items-center mb-6"><h3 id="title-swabs" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">Pre-operations Swab Results</h3><span id="ytd-swabs" class="ytd-badge">YTD Bad/Caution: 0</span></div>
+                                <div class="h-80"><canvas id="chartSwabs"></canvas></div>
+                            </div>
+                            <div class="card p-6 hover-effect">
+                                 <div class="flex items-center mb-6"><h3 id="title-enviro" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">Environmental Monitoring</h3><span id="ytd-enviro" class="ytd-badge">YTD Out of Range: 0</span></div>
+                                <div class="h-96"><canvas id="chartEnviro"></canvas></div>
+                            </div>
+                            <div class="card p-6 hover-effect">
+                                 <div class="flex items-center mb-6"><h3 id="title-fg" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">F.G Micro Testing</h3><span id="ytd-fg" class="ytd-badge">YTD Out of Range: 0</span></div>
+                                <div class="h-96"><canvas id="chartFG"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- GROUP 3: HSE -->
+                <section>
+                    <div class="print-section-group">
+                        <div class="section-header mb-6 mt-12 border-l-red-500">
+                            <h2 class="text-2xl font-bold text-slate-800">Health, Safety & Environment (HSE)</h2>
+                            <p class="text-sm text-slate-500">Safety Incidents & Accidents</p>
+                        </div>
+                        <div class="grid grid-cols-1 gap-6">
+                            <div class="card p-6 hover-effect">
+                                 <div class="flex items-center mb-6"><h3 id="title-hse" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">HSE Incidents Overview</h3><span id="ytd-hse" class="ytd-badge">YTD Total: 0</span></div>
+                                <div class="h-80"><canvas id="chartHSE"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- GROUP 4: SUSTAINABILITY -->
+                <section>
+                    <div class="print-section-group">
+                        <div class="section-header mb-6 mt-12 border-l-emerald-500">
+                            <h2 class="text-2xl font-bold text-slate-800">Sustainability</h2>
+                            <p class="text-sm text-slate-500">Consumption & Waste Management</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div class="card p-6 hover-effect">
+                                 <div class="flex items-center mb-6"><h3 id="title-resources" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">Resource Consumption</h3><span id="ytd-resources" class="ytd-badge">YTD: 0</span></div>
+                                <div class="h-64"><canvas id="chartResources"></canvas></div>
+                            </div>
+                            <div class="card p-6 hover-effect">
+                                 <div class="flex items-center mb-6"><h3 id="title-fuel" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">Fuel Consumption (Liters)</h3><span id="ytd-fuel" class="ytd-badge">YTD: 0 L</span></div>
+                                <div class="h-64"><canvas id="chartFuel"></canvas></div>
+                            </div>
+                            <div class="card p-6 hover-effect">
+                                 <div class="flex items-center mb-6"><h3 id="title-organic" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">Organic Waste (Kg)</h3><span id="ytd-organic" class="ytd-badge">YTD: 0 Kg</span></div>
+                                <div class="h-64"><canvas id="chartOrganic"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- GROUP 5: OTHERS -->
+                <section>
+                    <div class="print-section-group">
+                        <div class="section-header mb-6 mt-12 border-l-slate-500">
+                            <h2 class="text-2xl font-bold text-slate-800">Others / Operational</h2>
+                            <p class="text-sm text-slate-500">Logistics & Quality Standards</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-6 mb-6">
+                            <div class="card p-6 hover-effect">
+                                 <div class="flex items-center mb-6"><h3 id="title-inbound" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">Inbound Summary</h3><span id="ytd-inbound" class="ytd-badge">YTD Bad Batches: 0</span></div>
+                                <div class="h-80"><canvas id="chartInbound"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="card p-6 hover-effect">
+                             <div class="flex items-center mb-6"><h3 id="title-sensory" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">Sensory Evaluation</h3><span id="ytd-sensory" class="ytd-badge">YTD Avg Good: 0%</span></div>
+                            <div class="h-64"><canvas id="chartSensory"></canvas></div>
+                        </div>
+                        <div class="card p-6 hover-effect">
+                             <div class="flex items-center mb-6"><h3 id="title-sixsigma" contenteditable="true" class="editable-title text-lg font-bold text-slate-800">6 Sigma Level Trend</h3><span id="ytd-sixsigma" class="ytd-badge">YTD Avg: 0</span></div>
+                            <div class="h-64"><canvas id="chartSixSigma"></canvas></div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+            
+            <!-- COMPARE VIEW (New) -->
+            <div id="view-compare" class="hidden animate-fade-in pb-12">
+                <div class="section-header border-l-purple-500">
+                    <h2 class="text-2xl font-bold text-slate-800">Yearly Comparison</h2>
+                    <p class="text-sm text-slate-500">Compare performance across different operational years</p>
+                </div>
+
+                <div class="card p-6 mb-8 bg-slate-50 border-slate-200">
+                    <div class="flex flex-col md:flex-row items-center gap-4 justify-center">
+                        <div class="flex items-center gap-2">
+                            <label class="font-semibold text-slate-600">Year A:</label>
+                            <select id="compare-year-a" onchange="updateComparison()" class="bg-white border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                        </div>
+                        <div class="text-slate-400 font-bold">VS</div>
+                        <div class="flex items-center gap-2">
+                            <label class="font-semibold text-slate-600">Year B:</label>
+                            <select id="compare-year-b" onchange="updateComparison()" class="bg-white border border-slate-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                        </div>
+                        <button onclick="updateComparison()" class="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 transition shadow-sm ml-4">
+                            Run Comparison
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Comparison Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="comparison-kpis">
+                    <!-- JS Populated -->
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                     <div class="card p-6 hover-effect">
+                         <h3 class="text-lg font-bold text-slate-800 mb-4">Total Incidents Comparison</h3>
+                         <div class="h-64"><canvas id="chartCompareIncidents"></canvas></div>
+                     </div>
+                     <div class="card p-6 hover-effect">
+                         <h3 class="text-lg font-bold text-slate-800 mb-4">Quality Scores Comparison</h3>
+                         <div class="h-64"><canvas id="chartCompareQuality"></canvas></div>
+                     </div>
+                </div>
+
+                <div class="card p-6">
+                    <h3 class="text-lg font-bold text-slate-800 mb-4">Detailed Metrics Table</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200">
+                                    <th class="p-3 font-semibold text-slate-600">Metric Name</th>
+                                    <th class="p-3 font-semibold text-slate-600 text-center" id="th-year-a">Year A</th>
+                                    <th class="p-3 font-semibold text-slate-600 text-center" id="th-year-b">Year B</th>
+                                    <th class="p-3 font-semibold text-slate-600 text-center">Delta</th>
+                                </tr>
+                            </thead>
+                            <tbody id="comparison-table-body" class="divide-y divide-slate-100 text-slate-700">
+                                <!-- JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- DATA ENTRY VIEW -->
+            <div id="view-data" class="hidden animate-fade-in space-y-6 pb-12 no-print">
+                
+                <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start">
+                    <i class="fa-solid fa-circle-info text-blue-500 mt-1 mr-3"></i>
+                    <div>
+                        <h4 class="font-semibold text-blue-800">Editing Instructions</h4>
+                        <p class="text-sm text-blue-700 mt-1">
+                            <strong>1.</strong> You are currently editing data for <strong id="edit-year-indicator">2025</strong>.<br>
+                            <strong>2.</strong> Click on any number in the table to edit values.<br>
+                            <strong>3.</strong> Click on any Metric Name (e.g. "GMP Violations") to rename it. 
+                            The Chart Legends will update automatically to match your new name!
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-white/50">
+                        <h3 id="title-data-input" contenteditable="true" class="editable-title text-xl font-bold text-slate-800">Monthly Data Input</h3>
+                        <div class="space-x-2">
+                             <button onclick="forceSave()" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold px-3 py-1.5 rounded bg-emerald-50 hover:bg-emerald-100 transition-colors border border-emerald-100">
+                                <i class="fa-solid fa-save mr-1"></i> Force Save
+                            </button>
+                            <button onclick="resetData()" class="text-xs text-red-600 hover:text-red-800 font-bold px-3 py-1.5 rounded bg-red-50 hover:bg-red-100 transition-colors border border-red-100">
+                                <i class="fa-solid fa-rotate-left mr-1"></i> Reset Year
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse data-table">
+                            <thead>
+                                <tr>
+                                    <!-- WIDER COLUMN and W-FULL INPUT -->
+                                    <th class="p-4 border-b border-slate-100 sticky left-0 z-10 min-w-[300px] w-80 bg-white shadow-sm">Metric Name (Editable)</th>
+                                    <th class="p-4 text-center">Jan</th>
+                                    <th class="p-4 text-center">Feb</th>
+                                    <th class="p-4 text-center">Mar</th>
+                                    <th class="p-4 text-center">Apr</th>
+                                    <th class="p-4 text-center">May</th>
+                                    <th class="p-4 text-center">Jun</th>
+                                    <th class="p-4 text-center">Jul</th>
+                                    <th class="p-4 text-center">Aug</th>
+                                    <th class="p-4 text-center">Sep</th>
+                                    <th class="p-4 text-center">Oct</th>
+                                    <th class="p-4 text-center">Nov</th>
+                                    <th class="p-4 text-center">Dec</th>
+                                </tr>
+                            </thead>
+                            <tbody id="data-table-body" class="text-sm text-slate-700 divide-y divide-slate-50 bg-white">
+                                <!-- Javascript will populate this -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Live Updates Console -->
+                <div id="live-updates">
+                    <p class="text-slate-400 border-b border-slate-700 pb-2 mb-2">Supabase Realtime Stream</p>
+                    <div id="live-logs"></div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // --- Supabase Configuration ---
+        const SUPABASE_URL = 'https://gipprotpoxrmnszfmwxf.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpcHByb3Rwb3hybW5zemZtd3hmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NDM0MjEsImV4cCI6MjA4NjAxOTQyMX0.4qyNPJV0mIiTEqnpzcfMHp2R8ddti3awVxu9JHv2wPA';
+        const METRICS_TABLE = 'dashboard_metrics';
+        const TITLES_TABLE = 'dashboard_titles';
+        
+        let supabaseClient = null;
+        let currentSessionId = null;
+        let saveTimeout = null;
+        const statusEl = document.getElementById('save-status');
+
+        try {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (e) {
+            console.error("Supabase failed to init", e);
+            statusEl.innerText = "Error Init DB";
+            statusEl.classList.add('error');
+        }
+
+        // --- Configuration & Palette ---
+        
+        const colors = {
+            blue: '#2563eb', indigo: '#6366f1', emerald: '#10b981', teal: '#14b8a6', 
+            amber: '#f59e0b', orange: '#f97316', red: '#ef4444', darkRed: '#b91c1c', 
+            slate: '#64748b', dark: '#1e293b', cyan: '#06b6d4', brown: '#b45309'
+        };
+
+        Chart.defaults.font.family = "'Inter', 'Helvetica', 'Arial', sans-serif";
+        Chart.defaults.color = '#64748b';
+        Chart.defaults.scale.grid.color = '#f1f5f9';
+
+        // --- Data Management ---
+        const DEFAULT_YEAR = '2025';
+
+        const defaultData = {
+            months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            metrics: [
+                { id: 'gmp', name: 'GMP Violations', color: colors.red, type: 'bar', data: [2, 4, 1, 0, 3, 2, 1, 0, 0, 0, 0, 0] },
+                { id: 'pest', name: 'Pest Sightings', color: colors.amber, type: 'line', data: [1, 0, 2, 1, 0, 1, 0, 0, 0, 0, 0, 0] },
+                { id: 'complaints', name: 'Cust. Complaints', color: colors.indigo, type: 'line', data: [0, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0] },
+                { id: 'audits', name: 'Audit Score (%)', color: colors.blue, type: 'bar', data: [92, 94, 91, 95, 96, 93, 94, 0, 0, 0, 0, 0] },
+                { id: 'recalls', name: 'Product Recalls', color: colors.darkRed, type: 'bar', data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+                { id: 'six_sigma', name: '6 Sigma Level', color: colors.indigo, type: 'line', data: [3.8, 3.9, 4.0, 4.1, 4.0, 4.2, 4.3, 0, 0, 0, 0, 0] },
+                
+                { id: 'nm_fs', name: 'Near Miss (Food Safety)', color: colors.cyan, type: 'bar', data: [1, 0, 2, 1, 0, 1, 0, 0, 0, 0, 0, 0] },
+                { id: 'npr_fo', name: 'NPR Foreign Objects', color: colors.slate, type: 'bar', data: [0, 1, 0, 0, 2, 0, 1, 0, 0, 0, 0, 0] }, 
+
+                { id: 'nc_internal', name: 'NC: Internal', color: colors.indigo, type: 'bar', data: [5, 4, 6, 3, 5, 4, 5, 0, 0, 0, 0, 0] },
+                { id: 'nc_supplier', name: 'NC: Supplier', color: colors.orange, type: 'bar', data: [2, 3, 1, 4, 2, 3, 2, 0, 0, 0, 0, 0] },
+
+                { id: 'ccp_temp_good', name: 'CCP Temp: Acceptable', color: colors.emerald, type: 'bar', data: [30, 30, 29, 30, 31, 30, 31, 0, 0, 0, 0, 0] },
+                { id: 'ccp_temp_bad', name: 'CCP Temp: Out', color: colors.indigo, type: 'bar', data: [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+                { id: 'ccp_md_good', name: 'CCP MD: Acceptable', color: colors.emerald, type: 'bar', data: [90, 88, 90, 89, 90, 90, 90, 0, 0, 0, 0, 0] },
+                { id: 'ccp_md_bad', name: 'CCP MD: Fail', color: colors.red, type: 'bar', data: [0, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0] },
+                { id: 'ccp_cl_t2_good', name: 'CCP Cl T2: Acceptable', color: colors.emerald, type: 'bar', data: [60, 59, 60, 60, 60, 58, 60, 0, 0, 0, 0, 0] },
+                { id: 'ccp_cl_t2_bad', name: 'CCP Cl T2: Out', color: colors.teal, type: 'bar', data: [0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0] },
+                { id: 'ccp_cl_main_good', name: 'CCP Cl Main: Acceptable', color: colors.emerald, type: 'bar', data: [60, 60, 60, 60, 60, 60, 60, 0, 0, 0, 0, 0] },
+                { id: 'ccp_cl_main_bad', name: 'CCP Cl Main: Out', color: '#059669', type: 'bar', data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+
+                { id: 'sensory_lettuce_good', name: 'Sensory: Lettuce Good %', color: colors.teal, type: 'bar', data: [95, 96, 94, 98, 97, 95, 96, 0, 0, 0, 0, 0] },
+                { id: 'sensory_lettuce_bad', name: 'Sensory: Lettuce Bad %', color: colors.amber, type: 'bar', data: [5, 4, 6, 2, 3, 5, 4, 0, 0, 0, 0, 0] },
+                { id: 'sensory_onion_good', name: 'Sensory: Onion Good %', color: colors.blue, type: 'bar', data: [92, 94, 91, 95, 96, 93, 94, 0, 0, 0, 0, 0] },
+                { id: 'sensory_onion_bad', name: 'Sensory: Onion Bad %', color: colors.orange, type: 'bar', data: [8, 6, 9, 5, 4, 7, 6, 0, 0, 0, 0, 0] },
+
+                { id: 'swab_good', name: 'Pre-op Swab: Good', color: colors.emerald, type: 'bar', data: [150, 155, 148, 160, 158, 152, 154, 0, 0, 0, 0, 0] },
+                { id: 'swab_caution', name: 'Pre-op Swab: Caution', color: colors.amber, type: 'bar', data: [5, 3, 7, 2, 4, 3, 2, 0, 0, 0, 0, 0] },
+                { id: 'swab_bad', name: 'Pre-op Swab: Bad', color: colors.red, type: 'bar', data: [1, 0, 2, 0, 1, 1, 0, 0, 0, 0, 0, 0] },
+                
+                { id: 'env_tpc_good', name: 'Env TPC: Acceptable', color: colors.emerald, type: 'bar', data: [40, 42, 45, 40, 41, 44, 42, 0, 0, 0, 0, 0] },
+                { id: 'env_tpc_bad', name: 'Env TPC: Out of Range', color: colors.amber, type: 'bar', data: [0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0] }, 
+                { id: 'env_ecoli_good', name: 'Env E.coli: Acceptable', color: colors.emerald, type: 'bar', data: [40, 40, 40, 40, 40, 40, 40, 0, 0, 0, 0, 0] },
+                { id: 'env_ecoli_bad', name: 'Env E.coli: Out of Range', color: colors.red, type: 'bar', data: [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0] }, 
+                { id: 'env_ym_good', name: 'Env Y&M: Acceptable', color: colors.emerald, type: 'bar', data: [40, 39, 41, 40, 40, 38, 40, 0, 0, 0, 0, 0] },
+                { id: 'env_ym_bad', name: 'Env Y&M: Out of Range', color: colors.orange, type: 'bar', data: [0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0] }, 
+                { id: 'env_salm_good', name: 'Env Salmonella: Acceptable', color: colors.emerald, type: 'bar', data: [40, 40, 40, 40, 40, 40, 40, 0, 0, 0, 0, 0] },
+                { id: 'env_salm_bad', name: 'Env Salmonella: Out', color: colors.darkRed, type: 'bar', data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }, 
+                { id: 'env_staph_good', name: 'Env S.aureus: Acceptable', color: colors.emerald, type: 'bar', data: [40, 40, 40, 40, 40, 40, 40, 0, 0, 0, 0, 0] },
+                { id: 'env_staph_bad', name: 'Env S.aureus: Out', color: colors.indigo, type: 'bar', data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+                { id: 'env_list_good', name: 'Env Listeria: Acceptable', color: colors.emerald, type: 'bar', data: [40, 40, 40, 40, 40, 40, 40, 0, 0, 0, 0, 0] },
+                { id: 'env_list_bad', name: 'Env Listeria: Out', color: colors.dark, type: 'bar', data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }, 
+
+                { id: 'fg_ecoli_good', name: 'FG E.coli: Acceptable', color: colors.emerald, type: 'bar', data: [100, 105, 110, 108, 105, 112, 100, 0, 0, 0, 0, 0] },
+                { id: 'fg_ecoli_bad', name: 'FG E.coli: Out', color: colors.red, type: 'bar', data: [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+                { id: 'fg_0157_good', name: 'FG E.coli 0157: Acceptable', color: colors.emerald, type: 'bar', data: [100, 105, 110, 108, 105, 112, 100, 0, 0, 0, 0, 0] },
+                { id: 'fg_0157_bad', name: 'FG E.coli 0157: Out', color: colors.darkRed, type: 'bar', data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+                { id: 'fg_salm_good', name: 'FG Salmonella: Acceptable', color: colors.emerald, type: 'bar', data: [100, 105, 110, 108, 105, 112, 100, 0, 0, 0, 0, 0] },
+                { id: 'fg_salm_bad', name: 'FG Salmonella: Out', color: colors.orange, type: 'bar', data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+                { id: 'fg_list_good', name: 'FG Listeria: Acceptable', color: colors.emerald, type: 'bar', data: [100, 105, 110, 108, 105, 112, 100, 0, 0, 0, 0, 0] },
+                { id: 'fg_list_bad', name: 'FG Listeria: Out', color: colors.indigo, type: 'bar', data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+
+                { id: 'hse_near_miss', name: 'HSE: Near Miss', color: colors.amber, type: 'bar', data: [2, 1, 3, 2, 1, 2, 1, 0, 0, 0, 0, 0] },
+                { id: 'hse_accident_minor', name: 'HSE: Minor Accident', color: colors.orange, type: 'bar', data: [0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0] },
+                { id: 'hse_accident_major', name: 'HSE: Major Accident', color: colors.darkRed, type: 'bar', data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+
+                { id: 'inbound_veg_good', name: 'Veg: Good (Inbound)', color: colors.blue, type: 'bar', data: [50, 52, 48, 55, 53, 50, 51, 0, 0, 0, 0, 0] },
+                { id: 'inbound_veg_bad', name: 'Veg: Bad (Inbound)', color: colors.orange, type: 'bar', data: [2, 3, 1, 4, 2, 3, 1, 0, 0, 0, 0, 0] },
+                { id: 'inbound_leafy_good', name: 'Leafy: Good (Inbound)', color: colors.teal, type: 'bar', data: [40, 42, 38, 45, 43, 40, 41, 0, 0, 0, 0, 0] },
+                { id: 'inbound_leafy_bad', name: 'Leafy: Bad (Inbound)', color: colors.amber, type: 'bar', data: [5, 4, 6, 3, 5, 4, 5, 0, 0, 0, 0, 0] },
+                { id: 'water', name: 'Water Usage (kL)', color: colors.cyan, type: 'bar', data: [450, 430, 460, 420, 440, 480, 500, 0, 0, 0, 0, 0] },
+                { id: 'energy', name: 'Energy (kWh)', color: colors.emerald, type: 'line', data: [1200, 1150, 1220, 1100, 1180, 1300, 1350, 0, 0, 0, 0, 0] },
+                { id: 'fuel', name: 'Fuel Consumption (L)', color: colors.amber, type: 'bar', data: [300, 290, 310, 305, 320, 315, 330, 0, 0, 0, 0, 0] },
+                { id: 'organic_waste', name: 'Organic Waste (Kg)', color: colors.brown, type: 'bar', data: [150, 140, 160, 155, 145, 150, 160, 0, 0, 0, 0, 0] }
+            ]
+        };
+
+        // --- Store Structure ---
+        // { activeYear: '2025', years: { '2025': { metrics: [] } }, titles: {} }
+        let store = { activeYear: DEFAULT_YEAR, years: {}, titles: {} };
+        let appData = null; 
+
+        // ----------------------------------------------------
+        // INITIALIZATION LOGIC
+        // ----------------------------------------------------
+        async function initApp() {
+            setStatus('loading');
+            
+            try {
+                if (!supabaseClient) throw new Error("Supabase client not initialized");
+
+                // 1. Fetch from Supabase (Normalized Tables)
+                const [{ data: dbMetrics, error: err1 }, { data: dbTitles, error: err2 }] = await Promise.all([
+                    supabaseClient.from(METRICS_TABLE).select('*'),
+                    supabaseClient.from(TITLES_TABLE).select('*')
+                ]);
+
+                if (err1) throw err1;
+                if (err2) throw err2;
+
+                if (dbMetrics && dbMetrics.length > 0) {
+                    console.log("Supabase Data Found:", dbMetrics.length, "metrics");
+                    
+                    // Reconstruct store
+                    dbMetrics.forEach(row => {
+                        if (!store.years[row.year]) {
+                            store.years[row.year] = { months: defaultData.months, metrics: [] };
+                        }
+                        store.years[row.year].metrics.push({
+                            id: row.metric_id,
+                            name: row.name,
+                            color: row.color,
+                            type: row.type,
+                            data: [row.jan, row.feb, row.mar, row.apr, row.may, row.jun, row.jul, row.aug, row.sep, row.oct, row.nov, row.dec]
+                        });
+                    });
+
+                    if (dbTitles && dbTitles.length > 0) {
+                        dbTitles.forEach(t => store.titles[t.title_id] = t.title_text);
+                    }
+
+                    // Auto-select latest year
+                    const sortedYears = Object.keys(store.years).sort().reverse();
+                    store.activeYear = sortedYears.length > 0 ? sortedYears[0] : DEFAULT_YEAR;
+                    
+                    setStatus('saved');
+                    logUpdate("Loaded normalized data from cloud");
+                } else {
+                    console.log("No data in Supabase. Initializing default.");
+                    initDefaultStore();
+                    setStatus('saved'); 
+                    triggerAutoSave();
+                }
+            } catch (err) {
+                console.error("Initialization Error (Falling back to local):", err);
+                initDefaultStore();
+                setStatus('saved'); 
+                logUpdate("Loaded in offline/default mode.");
+            }
+
+            // 2. Hydrate UI
+            loadYear(store.activeYear);
+            renderYearList();
+            initTitles();
+            
+            // 3. Start Listening for External Changes
+            if(supabaseClient) subscribeToChanges();
+        }
+
+        function initDefaultStore() {
+            // Fresh Start
+            store.years[DEFAULT_YEAR] = JSON.parse(JSON.stringify(defaultData));
+            store.activeYear = DEFAULT_YEAR;
+            store.titles = {};
+        }
+
+        function loadYear(year) {
+            store.activeYear = year;
+            if(!store.years[year]) {
+                // Fallback if year missing
+                store.years[year] = JSON.parse(JSON.stringify(defaultData));
+            }
+            appData = store.years[year];
+            
+            // Ensure schema integrity
+            ensureMetricsComplete();
+
+            // Update UI
+            document.getElementById('current-year-display').innerText = year;
+            document.getElementById('print-year').innerText = year;
+            document.getElementById('edit-year-indicator').innerText = year;
+            
+            // Re-render everything
+            renderTable();
+            initCharts(); 
+            updateKPIs();
+        }
+
+        // ----------------------------------------------------
+        // STATE PERSISTENCE & SYNC
+        // ----------------------------------------------------
+        
+        function triggerAutoSave() {
+            setStatus('saving');
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(persistToSupabase, 1500); // 1.5s debounce
+        }
+
+        async function persistToSupabase() {
+            try {
+                if (!appData) return;
+
+                // Sync current active year's metrics
+                const metricsRows = appData.metrics.map(m => ({
+                    year: store.activeYear,
+                    metric_id: m.id,
+                    name: m.name,
+                    color: m.color,
+                    type: m.type,
+                    jan: m.data[0], feb: m.data[1], mar: m.data[2], apr: m.data[3],
+                    may: m.data[4], jun: m.data[5], jul: m.data[6], aug: m.data[7],
+                    sep: m.data[8], oct: m.data[9], nov: m.data[10], dec: m.data[11]
+                }));
+
+                const titleRows = Object.keys(store.titles).map(id => ({
+                    title_id: id,
+                    title_text: store.titles[id]
+                }));
+
+                const promises = [
+                    supabaseClient.from(METRICS_TABLE).upsert(metricsRows)
+                ];
+
+                if (titleRows.length > 0) {
+                    promises.push(supabaseClient.from(TITLES_TABLE).upsert(titleRows));
+                }
+
+                await Promise.all(promises);
+                
+                setStatus('saved');
+                console.log("Cloud Sync Complete");
+
+            } catch (err) {
+                console.error("Sync Failed:", err);
+                setStatus('error');
+            }
+        }
+
+        function forceSave() {
+            if(saveTimeout) clearTimeout(saveTimeout);
+            persistToSupabase();
+        }
+
+        // ----------------------------------------------------
+        // DOM EVENT HANDLERS
+        // ----------------------------------------------------
+
+        function promptNewYear() {
+            const nextYear = (parseInt(store.activeYear) + 1).toString();
+            const year = prompt("Enter the year you want to add:", nextYear);
+            if(year && year.match(/^\d{4}$/)) {
+                if(store.years[year]) {
+                    alert("Year already exists! Switching to it.");
+                    loadYear(year);
+                } else {
+                    // CLONE structure from current year, but zero out data
+                    const newMetrics = JSON.parse(JSON.stringify(appData.metrics));
+                    newMetrics.forEach(m => {
+                        m.data = new Array(12).fill(0);
+                    });
+                    
+                    store.years[year] = {
+                        months: defaultData.months,
+                        metrics: newMetrics
+                    };
+                    loadYear(year);
+                    renderYearList();
+                    triggerAutoSave();
+                    alert(`Year ${year} created successfully.`);
+                }
+            } else if(year) {
+                alert("Invalid year format.");
+            }
+        }
+
+        function toggleYearMenu(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('year-dropdown');
+            menu.classList.toggle('hidden');
+        }
+
+        window.addEventListener('click', (e) => {
+            const menu = document.getElementById('year-dropdown');
+            if (menu && !menu.classList.contains('hidden')) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        function renderYearList() {
+            const list = document.getElementById('year-list');
+            list.innerHTML = '';
+            Object.keys(store.years).sort().reverse().forEach(y => {
+                const div = document.createElement('div');
+                div.className = `px-4 py-2 text-sm cursor-pointer hover:bg-slate-50 flex justify-between items-center ${y === store.activeYear ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600'}`;
+                div.innerHTML = `<span>${y}</span> ${y === store.activeYear ? '<i class="fa-solid fa-check text-xs"></i>' : ''}`;
+                div.onclick = () => {
+                    if(y !== store.activeYear) loadYear(y);
+                };
+                list.appendChild(div);
+            });
+        }
+
+        function ensureMetricsComplete() {
+            const allowedIds = defaultData.metrics.map(m => m.id);
+            defaultData.metrics.forEach(defM => {
+                const existing = appData.metrics.find(m => m.id === defM.id);
+                if(!existing) {
+                    appData.metrics.push(JSON.parse(JSON.stringify(defM)));
+                }
+            });
+            appData.metrics = appData.metrics.filter(m => allowedIds.includes(m.id));
+        }
+
+        function resetData() { 
+            if(confirm(`Are you sure you want to reset ALL data for ${store.activeYear}?`)) { 
+                appData.metrics.forEach(m => m.data = new Array(12).fill(0));
+                triggerAutoSave(); 
+                loadYear(store.activeYear); // Re-render
+            } 
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('active', 'bg-slate-900', 'text-white'); el.classList.add('text-slate-600'); });
+            document.getElementById(`btn-${tabName}`).classList.add('active'); document.getElementById(`btn-${tabName}`).classList.remove('text-slate-600');
+            document.getElementById('view-dashboard').classList.add('hidden'); 
+            document.getElementById('view-data').classList.add('hidden'); 
+            document.getElementById('view-compare').classList.add('hidden');
+            
+            document.getElementById(`view-${tabName}`).classList.remove('hidden');
+
+            if(tabName === 'compare') {
+                initComparison();
+            }
+        }
+
+        // --- Table Rendering (with Editable Names) ---
+        function renderTable() {
+            const tbody = document.getElementById('data-table-body');
+            tbody.innerHTML = '';
+            appData.metrics.forEach((metric, metricIndex) => {
+                const tr = document.createElement('tr');
+                const th = document.createElement('th');
+                th.className = "p-2 border-r border-slate-100 bg-white sticky left-0 z-10 text-left shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)] min-w-[300px] w-80"; 
+                
+                // Color dot
+                const dot = `<span class="w-2 h-2 rounded-full mr-2 inline-block" style="background-color: ${metric.color}"></span>`;
+                
+                // Editable Input for Name
+                const nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.value = metric.name;
+                nameInput.className = 'name-input w-full bg-transparent border border-transparent rounded hover:border-slate-200 focus:border-blue-400 px-2 py-1 text-sm font-semibold text-slate-800';
+                nameInput.onchange = (e) => {
+                    appData.metrics[metricIndex].name = e.target.value;
+                    updateCharts(); // name changed, update charts
+                    triggerAutoSave();
+                };
+
+                const container = document.createElement('div');
+                container.className = 'flex items-center w-full';
+                container.innerHTML = dot;
+                container.appendChild(nameInput);
+                
+                th.appendChild(container);
+                tr.appendChild(th);
+
+                metric.data.forEach((val, monthIndex) => {
+                    const td = document.createElement('td');
+                    td.className = "p-2 border-r border-slate-50 last:border-r-0";
+                    const input = document.createElement('input');
+                    input.type = "number"; input.value = val;
+
+                    input.oninput = (e) => { 
+                        appData.metrics[metricIndex].data[monthIndex] = Number(e.target.value); 
+                        updateKPIs();
+                        updateCharts();
+                        triggerAutoSave(); 
+                    };
+                    td.appendChild(input); tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- Helper Math Functions ---
+        function sumMetric(id, sourceData = appData) { 
+            const m = sourceData.metrics.find(x => x.id === id);
+            return m ? m.data.reduce((a, b) => a + (b || 0), 0) : 0;
+        }
+        function avgMetric(id, sourceData = appData) { 
+            const m = sourceData.metrics.find(x => x.id === id);
+            if (!m) return 0;
+            const valid = m.data.filter(v => v > 0); 
+            if (valid.length === 0) return 0; 
+            return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length); 
+        }
+        function getMetricData(id) { return appData.metrics.find(m => m.id === id)?.data || []; }
+        function getMetricName(id) { return appData.metrics.find(m => m.id === id)?.name || id; }
+
+        // --- Title Management (Refactored to use store.titles) ---
+        function initTitles() {
+            const syncMap = {
+                'title-audits': 'label-audits', 'title-gmp': 'label-gmp', 'title-pest': 'label-pest',
+                'title-complaints': 'label-complaints', 'title-ccp': 'label-ccp', 'title-recalls': 'label-recalls',
+                'title-nearmiss': 'label-nearmiss', 'title-npr': 'label-npr', 'title-nc': 'label-nc',
+                'title-hse': 'label-hse', 'title-inbound': 'label-inbound', 'title-swabs': 'label-swabs',
+                'title-enviro': 'label-enviro', 'title-sixsigma': 'label-sixsigma', 'title-sensory': 'label-sensory',
+                'title-resources': 'label-water', 'title-fuel': 'label-fuel', 'title-organic': 'label-organic'
+            };
+
+            const mainTitle = document.getElementById('main-title');
+            const mainSubtitle = document.getElementById('main-subtitle');
+            
+            // Populate from store
+            if (store.titles['main-title']) mainTitle.innerText = store.titles['main-title'];
+            if (store.titles['main-subtitle']) mainSubtitle.innerText = store.titles['main-subtitle'];
+            
+            const dataInputTitle = document.getElementById('title-data-input');
+            if (store.titles['title-data-input']) dataInputTitle.innerText = store.titles['title-data-input'];
+
+            const syncLabel = (titleId, text) => {
+                const labelId = syncMap[titleId];
+                if(labelId) { const labelEl = document.getElementById(labelId); if(labelEl) labelEl.innerText = "YTD " + text; }
+            };
+
+            // Use onblur to prevent duplicate listeners
+            [mainTitle, mainSubtitle, dataInputTitle].forEach(el => {
+                if(el) {
+                    el.onblur = () => { 
+                        store.titles[el.id] = el.innerText; 
+                        triggerAutoSave(); 
+                    };
+                    el.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); el.blur(); } };
+                }
+            });
+
+            document.querySelectorAll('.editable-title').forEach(el => {
+                if (el.id === 'main-title' || el.id === 'main-subtitle' || el.id === 'title-data-input') return; 
+                const id = el.id;
+                if (store.titles[id]) { el.innerText = store.titles[id]; syncLabel(id, store.titles[id]); }
+                
+                el.onblur = () => { 
+                    const newText = el.innerText; 
+                    store.titles[id] = newText; 
+                    syncLabel(id, newText); 
+                    triggerAutoSave();
+                };
+                el.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); el.blur(); } };
+            });
+        }
+
+        // --- Chart Logic ---
+        let charts = {};
+        
+        function initCharts() {
+            // Destroy existing charts to prevent canvas reuse errors
+            Object.values(charts).forEach(c => c.destroy());
+            charts = {};
+
+            const commonOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } };
+            const stackedOptions = { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } };
+
+            // Helper to create chart
+            const createChart = (id, type, data, options = commonOptions) => {
+                const ctx = document.getElementById(id);
+                if(ctx) charts[id] = new Chart(ctx.getContext('2d'), { type, data, options });
+            };
+
+            createChart('chartGMP', 'bar', { labels: appData.months, datasets: [{ label: getMetricName('gmp'), data: getMetricData('gmp'), backgroundColor: colors.red, borderRadius: 4 }] });
+            createChart('chartPest', 'line', { labels: appData.months, datasets: [{ label: getMetricName('pest'), data: getMetricData('pest'), borderColor: colors.amber, backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4 }] });
+            createChart('chartComplaints', 'line', { labels: appData.months, datasets: [{ label: getMetricName('complaints'), data: getMetricData('complaints'), borderColor: colors.indigo, backgroundColor: 'rgba(99, 102, 241, 0.1)', fill: true, tension: 0.4 }] });
+            createChart('chartAudits', 'bar', { labels: appData.months, datasets: [{ label: getMetricName('audits'), data: getMetricData('audits'), backgroundColor: colors.blue, borderRadius: 4 }] }, { ...commonOptions, scales: { y: { min: 80, max: 100 } } });
+
+            createChart('chartSwabs', 'bar', { labels: appData.months, datasets: [{ label: getMetricName('swab_good'), data: getMetricData('swab_good'), backgroundColor: colors.emerald }, { label: getMetricName('swab_caution'), data: getMetricData('swab_caution'), backgroundColor: colors.amber }, { label: getMetricName('swab_bad'), data: getMetricData('swab_bad'), backgroundColor: colors.red }] }, stackedOptions);
+
+            // Calculated datasets for Enviro
+            const sumArrays = (ids) => appData.months.map((_, i) => ids.reduce((sum, id) => sum + (getMetricData(id)[i] || 0), 0));
+            createChart('chartEnviro', 'bar', { labels: appData.months, datasets: [ { label: 'Within Range', data: sumArrays(['env_tpc_good', 'env_ecoli_good', 'env_ym_good', 'env_salm_good', 'env_staph_good', 'env_list_good']), backgroundColor: colors.emerald, stack: 'main', order: 2 }, { label: getMetricName('env_tpc_bad'), data: getMetricData('env_tpc_bad'), backgroundColor: colors.amber, stack: 'main', order: 1 }, { label: getMetricName('env_ecoli_bad'), data: getMetricData('env_ecoli_bad'), backgroundColor: colors.red, stack: 'main', order: 1 }, { label: getMetricName('env_ym_bad'), data: getMetricData('env_ym_bad'), backgroundColor: colors.orange, stack: 'main', order: 1 }, { label: getMetricName('env_salm_bad'), data: getMetricData('env_salm_bad'), backgroundColor: colors.darkRed, stack: 'main', order: 1 }, { label: getMetricName('env_staph_bad'), data: getMetricData('env_staph_bad'), backgroundColor: colors.indigo, stack: 'main', order: 1 }, { label: getMetricName('env_list_bad'), data: getMetricData('env_list_bad'), backgroundColor: colors.dark, stack: 'main', order: 1 } ] }, stackedOptions);
+
+            createChart('chartFG', 'bar', { labels: appData.months, datasets: [ { label: 'Acceptable', data: sumArrays(['fg_ecoli_good', 'fg_0157_good', 'fg_salm_good', 'fg_list_good']), backgroundColor: colors.emerald, stack: 'main', order: 2 }, { label: getMetricName('fg_ecoli_bad'), data: getMetricData('fg_ecoli_bad'), backgroundColor: colors.red, stack: 'main', order: 1 }, { label: getMetricName('fg_0157_bad'), data: getMetricData('fg_0157_bad'), backgroundColor: colors.darkRed, stack: 'main', order: 1 }, { label: getMetricName('fg_salm_bad'), data: getMetricData('fg_salm_bad'), backgroundColor: colors.orange, stack: 'main', order: 1 }, { label: getMetricName('fg_list_bad'), data: getMetricData('fg_list_bad'), backgroundColor: colors.indigo, stack: 'main', order: 1 } ] }, stackedOptions);
+
+            createChart('chartCCP', 'bar', { labels: appData.months, datasets: [ { label: 'Acceptable', data: sumArrays(['ccp_temp_good', 'ccp_md_good', 'ccp_cl_t2_good', 'ccp_cl_main_good']), backgroundColor: colors.emerald, stack: 'main', order: 2 }, { label: getMetricName('ccp_temp_bad'), data: getMetricData('ccp_temp_bad'), backgroundColor: colors.indigo, stack: 'main', order: 1 }, { label: getMetricName('ccp_md_bad'), data: getMetricData('ccp_md_bad'), backgroundColor: colors.red, stack: 'main', order: 1 }, { label: getMetricName('ccp_cl_t2_bad'), data: getMetricData('ccp_cl_t2_bad'), backgroundColor: colors.teal, stack: 'main', order: 1 }, { label: getMetricName('ccp_cl_main_bad'), data: getMetricData('ccp_cl_main_bad'), backgroundColor: '#059669', stack: 'main', order: 1 } ] }, stackedOptions);
+
+            createChart('chartInbound', 'bar', { labels: appData.months, datasets: [ { label: getMetricName('inbound_veg_good'), data: getMetricData('inbound_veg_good'), backgroundColor: colors.blue, stack: 'Veg' }, { label: getMetricName('inbound_veg_bad'), data: getMetricData('inbound_veg_bad'), backgroundColor: colors.orange, stack: 'Veg' }, { label: getMetricName('inbound_leafy_good'), data: getMetricData('inbound_leafy_good'), backgroundColor: colors.teal, stack: 'Leafy' }, { label: getMetricName('inbound_leafy_bad'), data: getMetricData('inbound_leafy_bad'), backgroundColor: colors.amber, stack: 'Leafy' } ] }, stackedOptions);
+
+            createChart('chartSensory', 'bar', { labels: appData.months, datasets: [ { label: getMetricName('sensory_lettuce_good'), data: getMetricData('sensory_lettuce_good'), backgroundColor: colors.teal, stack: 'Lettuce' }, { label: getMetricName('sensory_lettuce_bad'), data: getMetricData('sensory_lettuce_bad'), backgroundColor: colors.amber, stack: 'Lettuce' }, { label: getMetricName('sensory_onion_good'), data: getMetricData('sensory_onion_good'), backgroundColor: colors.blue, stack: 'Onion' }, { label: getMetricName('sensory_onion_bad'), data: getMetricData('sensory_onion_bad'), backgroundColor: colors.orange, stack: 'Onion' } ] }, { ...stackedOptions, scales: { x: { stacked: true }, y: { stacked: true, max: 100 } } });
+
+            createChart('chartRecalls', 'bar', { labels: appData.months, datasets: [{ label: getMetricName('recalls'), data: getMetricData('recalls'), backgroundColor: colors.darkRed, borderRadius: 4 }] }, { ...commonOptions, plugins: [{ id: 'watermark', afterDraw: (chart) => { if(chart.data.datasets[0].data.every(v=>v===0)){ const ctx=chart.ctx; const {width,height}=chart.chartArea; ctx.save(); ctx.font='bold 60px Inter'; ctx.fillStyle='rgba(200,200,200,0.3)'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('ZERO', width/2 + chart.chartArea.left, height/2 + chart.chartArea.top); ctx.restore(); } } }] });
+
+            createChart('chartSixSigma', 'line', { labels: appData.months, datasets: [{ label: getMetricName('six_sigma'), data: getMetricData('six_sigma'), borderColor: colors.indigo, tension: 0.4 }] }, { ...commonOptions, maintainAspectRatio: false });
+            createChart('chartNC', 'bar', { labels: appData.months, datasets: [{ label: getMetricName('nc_internal'), data: getMetricData('nc_internal'), backgroundColor: colors.indigo }, { label: getMetricName('nc_supplier'), data: getMetricData('nc_supplier'), backgroundColor: colors.orange }] }, commonOptions);
+            createChart('chartNearMissFS', 'bar', { labels: appData.months, datasets: [{ label: getMetricName('nm_fs'), data: getMetricData('nm_fs'), backgroundColor: colors.cyan, borderRadius: 4 }] }, commonOptions);
+            createChart('chartNPR', 'bar', { labels: appData.months, datasets: [{ label: getMetricName('npr_fo'), data: getMetricData('npr_fo'), backgroundColor: colors.slate, borderRadius: 4 }] }, commonOptions);
+
+            createChart('chartHSE', 'bar', { labels: appData.months, datasets: [ { label: getMetricName('hse_near_miss'), data: getMetricData('hse_near_miss'), backgroundColor: colors.amber, stack: 'nm' }, { label: getMetricName('hse_accident_minor'), data: getMetricData('hse_accident_minor'), backgroundColor: colors.orange, stack: 'acc' }, { label: getMetricName('hse_accident_major'), data: getMetricData('hse_accident_major'), backgroundColor: colors.darkRed, stack: 'acc' } ] }, stackedOptions);
+
+            createChart('chartResources', 'bar', { labels: appData.months, datasets: [ { label: getMetricName('water'), data: getMetricData('water'), backgroundColor: colors.cyan, order: 2 }, { label: getMetricName('energy'), data: getMetricData('energy'), borderColor: colors.emerald, type: 'line', order: 1, yAxisID: 'y1' } ] }, { ...commonOptions, scales: { y: { beginAtZero: true }, y1: { position: 'right', grid: { drawOnChartArea: false } } } });
+            
+            createChart('chartFuel', 'bar', { labels: appData.months, datasets: [{ label: getMetricName('fuel'), data: getMetricData('fuel'), backgroundColor: colors.amber, borderRadius: 4 }] }, commonOptions);
+            createChart('chartOrganic', 'bar', { labels: appData.months, datasets: [{ label: getMetricName('organic_waste'), data: getMetricData('organic_waste'), backgroundColor: colors.brown, borderRadius: 4 }] }, commonOptions);
+        }
+
+        // Just refreshes data, relies on initCharts to set structure
+        function updateCharts() {
+            initCharts();
+        }
+
+        function updateKPIs() {
+            document.getElementById('kpi-gmp-total').innerText = sumMetric('gmp');
+            document.getElementById('kpi-pest-total').innerText = sumMetric('pest');
+            document.getElementById('kpi-complaints-total').innerText = sumMetric('complaints');
+            document.getElementById('kpi-audit-avg').innerText = avgMetric('audits') + '%';
+
+            const setBadge = (id, text) => { const el = document.getElementById(id); if(el) el.innerText = text; };
+
+            // Logic to calculate sums
+            const sumFail = (ids) => ids.reduce((acc, id) => acc + sumMetric(id), 0);
+
+            setBadge('ytd-ccp', 'YTD Fail: ' + sumFail(['ccp_temp_bad', 'ccp_md_bad', 'ccp_cl_t2_bad', 'ccp_cl_main_bad']));
+            setBadge('ytd-recalls', 'YTD: ' + sumMetric('recalls'));
+            setBadge('ytd-nearmiss', 'YTD: ' + sumMetric('nm_fs'));
+            setBadge('ytd-npr', 'YTD: ' + sumMetric('npr_fo'));
+            setBadge('ytd-nc', 'YTD: ' + sumFail(['nc_internal', 'nc_supplier']));
+            setBadge('ytd-gmp', 'YTD: ' + sumMetric('gmp'));
+            setBadge('ytd-pest', 'YTD: ' + sumMetric('pest'));
+            setBadge('ytd-complaints', 'YTD: ' + sumMetric('complaints'));
+            setBadge('ytd-audits', 'YTD Avg: ' + avgMetric('audits') + '%');
+            setBadge('ytd-swabs', 'YTD Bad/Caution: ' + sumFail(['swab_caution', 'swab_bad']));
+            
+            const envBadSum = sumFail(['env_tpc_bad', 'env_ecoli_bad', 'env_ym_bad', 'env_salm_bad', 'env_staph_bad', 'env_list_bad']);
+            setBadge('ytd-enviro', 'YTD Out of Range: ' + envBadSum);
+
+            const fgBadSum = sumFail(['fg_ecoli_bad', 'fg_0157_bad', 'fg_salm_bad', 'fg_list_bad']);
+            setBadge('ytd-fg', 'YTD Out of Range: ' + fgBadSum);
+
+            setBadge('ytd-hse', 'YTD Total: ' + sumFail(['hse_near_miss', 'hse_accident_minor', 'hse_accident_major']));
+            setBadge('ytd-resources', 'Water: ' + sumMetric('water') + 'kL'); 
+            setBadge('ytd-fuel', 'YTD: ' + sumMetric('fuel') + ' L');
+            setBadge('ytd-organic', 'YTD: ' + sumMetric('organic_waste') + ' Kg');
+            setBadge('ytd-inbound', 'YTD Bad Batches: ' + sumFail(['inbound_veg_bad', 'inbound_leafy_bad']));
+            
+            const sensoryAvg = Math.round((avgMetric('sensory_lettuce_good') + avgMetric('sensory_onion_good')) / 2);
+            setBadge('ytd-sensory', 'YTD Avg Good: ' + sensoryAvg + '%');
+            
+            // Detail Numbers
+            document.getElementById('kpi-ccp-fails').innerText = sumFail(['ccp_temp_bad', 'ccp_md_bad', 'ccp_cl_t2_bad', 'ccp_cl_main_bad']);
+            document.getElementById('kpi-recalls-total').innerText = sumMetric('recalls');
+            document.getElementById('kpi-nm-fs').innerText = sumMetric('nm_fs');
+            document.getElementById('kpi-npr').innerText = sumMetric('npr_fo');
+            document.getElementById('kpi-nc').innerText = sumFail(['nc_internal', 'nc_supplier']);
+            document.getElementById('kpi-inbound-bad').innerText = sumFail(['inbound_veg_bad', 'inbound_leafy_bad']);
+            document.getElementById('kpi-swab-issues').innerText = sumFail(['swab_caution', 'swab_bad']);
+            document.getElementById('kpi-micro-fails').innerText = (envBadSum + fgBadSum);
+            document.getElementById('kpi-hse-total').innerText = sumFail(['hse_near_miss', 'hse_accident_minor', 'hse_accident_major']);
+            document.getElementById('kpi-sixsigma').innerText = (getMetricData('six_sigma').filter(v=>v>0).reduce((a,b)=>a+b,0) / getMetricData('six_sigma').filter(v=>v>0).length || 0).toFixed(1);
+            document.getElementById('kpi-sensory').innerText = sensoryAvg + '%';
+            document.getElementById('kpi-water').innerText = sumMetric('water');
+            document.getElementById('kpi-energy').innerText = sumMetric('energy');
+            document.getElementById('kpi-fuel').innerText = sumMetric('fuel');
+            document.getElementById('kpi-organic').innerText = sumMetric('organic_waste');
+        }
+
+
+        // --- COMPARISON LOGIC ---
+        let compCharts = {};
+
+        function initComparison() {
+            const years = Object.keys(store.years).sort().reverse();
+            const selA = document.getElementById('compare-year-a');
+            const selB = document.getElementById('compare-year-b');
+            
+            // Preserve selection if already set, else default
+            if(selA.options.length === 0) {
+                selA.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+                selB.innerHTML = years.map(y => `<option value="${y}" ${y !== years[0] ? 'selected' : ''}>${y}</option>`).join('');
+                // If only 1 year, handle gracefully
+                if(years.length < 2 && selB.options.length > 0) selB.value = years[0]; 
+            }
+            updateComparison();
+        }
+
+        function updateComparison() {
+            const yA = document.getElementById('compare-year-a').value;
+            const yB = document.getElementById('compare-year-b').value;
+            
+            document.getElementById('th-year-a').innerText = yA;
+            document.getElementById('th-year-b').innerText = yB;
+
+            const dataA = store.years[yA];
+            const dataB = store.years[yB];
+
+            if(!dataA || !dataB) return;
+
+            // 1. Comparison Table
+            const tbody = document.getElementById('comparison-table-body');
+            tbody.innerHTML = '';
+
+            // Helper for row generation
+            const addRow = (label, valA, valB, inverse = false) => {
+                const tr = document.createElement('tr');
+                const diff = valB - valA;
+                let diffClass = 'diff-neutral';
+                let diffIcon = '';
+
+                if (diff !== 0) {
+                    // Logic: For incidents (inverse=true), negative diff is GOOD (green). 
+                    // For scores (inverse=false), positive diff is GOOD (green).
+                    const isGood = inverse ? (diff < 0) : (diff > 0);
+                    diffClass = isGood ? 'diff-positive' : 'diff-negative';
+                    diffIcon = isGood ? '<i class="fa-solid fa-arrow-up-right-dots fa-rotate-180"></i>' : '<i class="fa-solid fa-arrow-trend-up"></i>';
+                    // Correction for icon direction logic based on meaning
+                    if(inverse && diff < 0) diffIcon = '<i class="fa-solid fa-arrow-trend-down"></i>'; // Good drop
+                    if(inverse && diff > 0) diffIcon = '<i class="fa-solid fa-arrow-trend-up"></i>'; // Bad rise
+                    if(!inverse && diff > 0) diffIcon = '<i class="fa-solid fa-arrow-trend-up"></i>'; // Good rise
+                    if(!inverse && diff < 0) diffIcon = '<i class="fa-solid fa-arrow-trend-down"></i>'; // Bad drop
+                }
+                
+                tr.innerHTML = `
+                    <td class="p-3 font-medium">${label}</td>
+                    <td class="p-3 text-center bg-slate-50/50">${valA}</td>
+                    <td class="p-3 text-center font-bold text-slate-800">${valB}</td>
+                    <td class="p-3 text-center ${diffClass}">${diff > 0 ? '+' : ''}${diff} ${diffIcon}</td>
+                `;
+                tbody.appendChild(tr);
+            };
+
+            // Selected Key Metrics for Table
+            addRow('Total GMP Violations', sumMetric('gmp', dataA), sumMetric('gmp', dataB), true);
+            addRow('Customer Complaints', sumMetric('complaints', dataA), sumMetric('complaints', dataB), true);
+            addRow('Audit Score (Avg)', avgMetric('audits', dataA), avgMetric('audits', dataB), false);
+            addRow('CCP Failures', sumMetric('ccp_md_bad', dataA) + sumMetric('ccp_temp_bad', dataA), sumMetric('ccp_md_bad', dataB) + sumMetric('ccp_temp_bad', dataB), true);
+            addRow('HSE Incidents', sumMetric('hse_accident_minor', dataA) + sumMetric('hse_accident_major', dataA), sumMetric('hse_accident_minor', dataB) + sumMetric('hse_accident_major', dataB), true);
+            addRow('Water Usage (kL)', sumMetric('water', dataA), sumMetric('water', dataB), true);
+
+            // 2. Comparison Charts
+            if(compCharts.incidents) compCharts.incidents.destroy();
+            if(compCharts.quality) compCharts.quality.destroy();
+
+            // Incident Data Preparation
+            const incA = [sumMetric('gmp', dataA), sumMetric('pest', dataA), sumMetric('complaints', dataA), sumMetric('nc_internal', dataA)];
+            const incB = [sumMetric('gmp', dataB), sumMetric('pest', dataB), sumMetric('complaints', dataB), sumMetric('nc_internal', dataB)];
+
+            compCharts.incidents = new Chart(document.getElementById('chartCompareIncidents'), {
+                type: 'bar',
+                data: {
+                    labels: ['GMP', 'Pests', 'Complaints', 'NC Internal'],
+                    datasets: [
+                        { label: yA, data: incA, backgroundColor: '#94a3b8' },
+                        { label: yB, data: incB, backgroundColor: '#3b82f6' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // Quality Scores Prep
+            const qualA = [avgMetric('audits', dataA), avgMetric('sensory_lettuce_good', dataA)];
+            const qualB = [avgMetric('audits', dataB), avgMetric('sensory_lettuce_good', dataB)];
+
+            compCharts.quality = new Chart(document.getElementById('chartCompareQuality'), {
+                type: 'bar',
+                data: {
+                    labels: ['Audit Score', 'Sensory (Lettuce)'],
+                    datasets: [
+                        { label: yA, data: qualA, backgroundColor: '#94a3b8' },
+                        { label: yB, data: qualB, backgroundColor: '#10b981' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 80, max: 100 } } } 
+            });
+        }
+
+
+        // ----------------------------------------------------
+        // REAL-TIME SYNC LOGIC
+        // ----------------------------------------------------
+        function logUpdate(msg) {
+            const liveLogs = document.getElementById('live-logs');
+            const p = document.createElement('p');
+            const time = new Date().toLocaleTimeString();
+            p.innerHTML = `<span class="text-slate-500">[${time}]</span> <span class="new-event">${msg}</span>`;
+            liveLogs.prepend(p);
+        }
+
+        function setStatus(state) {
+            statusEl.className = ''; 
+            if (state === 'saving') {
+                statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+                statusEl.classList.add('saving');
+            } else if (state === 'saved') {
+                statusEl.innerHTML = '<i class="fa-solid fa-check"></i> Cloud Synced';
+                statusEl.classList.add('saved');
+            } else if (state === 'error') {
+                statusEl.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Sync Error';
+                statusEl.classList.add('error');
+            } else if (state === 'loading') {
+                statusEl.innerHTML = '<i class="fa-solid fa-cloud-arrow-down fa-bounce"></i> Loading...';
+                statusEl.classList.add('loading');
+            }
+        }
+
+        function subscribeToChanges() {
+            supabaseClient
+                .channel('dashboard-metrics-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: METRICS_TABLE }, (payload) => {
+                    const row = payload.new;
+                    if (row && row.year && store.years[row.year]) {
+                        const metric = store.years[row.year].metrics.find(m => m.id === row.metric_id);
+                        if (metric) {
+                            metric.name = row.name;
+                            metric.data = [row.jan, row.feb, row.mar, row.apr, row.may, row.jun, row.jul, row.aug, row.sep, row.oct, row.nov, row.dec];
+                            
+                            logUpdate(`Remote update: ${row.name}`);
+                            if (store.activeYear === row.year) {
+                                loadYear(store.activeYear); 
+                            }
+                        }
+                    }
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: TITLES_TABLE }, (payload) => {
+                    if (payload.new && payload.new.title_id) {
+                        store.titles[payload.new.title_id] = payload.new.title_text;
+                        initTitles();
+                    }
+                })
+                .subscribe();
+        }
+
+        // Start App
+        window.addEventListener('load', () => {
+            initApp();
+        });
+
+    </script>
+</body>
+</html>
